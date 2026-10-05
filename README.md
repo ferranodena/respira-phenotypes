@@ -1,113 +1,85 @@
-# Reto 2 · Fenotipado digital de secuelas post-infecciosas
+# Respira Hackathon: Beyond the Infection, a Smart Map to Understand Sequelae
 
-Identificamos fenotipos de las secuelas tras una infección respiratoria grave que **se mantienen al cambiar de cohorte**, describimos **cómo evolucionan** y estudiamos **cuándo se pueden predecir**. Datos: cuatro cohortes (CIBERESUCICOVID, POSTCOVID-Lleida, TENACITY y Virgen del Rocío), 9.809 pacientes únicos.
+🏆 **First prize winner** of the challenge *"Más allá de la infección: un mapa inteligente para comprender las secuelas"*.
 
-**El notebook a presentar es [`main.ipynb`](main.ipynb).** Resume el proyecto de principio a fin. Los notebooks numerados de [`Workflow/`](Workflow) desarrollan cada paso con más detalle.
+## The challenge
 
-## Resultados en tres frases
+Recovery after a severe respiratory infection varies a lot between patients. Some return to their previous health. Others live for months or years with dyspnoea, fatigue, memory or concentration problems, sleep disturbances or muscle weakness. Current classifications usually focus on isolated symptoms or abnormalities. They can group patients with very different recovery needs under one diagnosis.
 
-1. **Un fenotipo que viaja.** Con lo que las tres cohortes miden igual (DLCO, FVC y FEV1), a los 3 meses salen dos fenotipos: **F1 · función conservada** y **F2 · afectación funcional**.
-   - Son estables (Jaccard 0,92).
-   - Se reproducen al dejar fuera cada cohorte (ARI 0,50–0,73).
-   - Los fenotipos de síntomas de una sola cohorte no se reproducen.
-2. **Evolucionan distinto.** Los dos mejoran, pero al año F2 sigue **11,5 puntos de DLCO por debajo** de F1 y por debajo del 80 %, en todas las cohortes.
-3. **Se predice en la visita de los 3 meses, no al alta.**
-   - Con los datos del alta, AUC ≈ 0,63 con cualquier modelo.
-   - A los 3 meses, **la DLCO sola** predice quién seguirá alterado al año: AUC 0,79 en cohortes no vistas. Ningún modelo más complejo la mejora.
+The challenge was to build an AI and data-analysis prototype that turns clinical, functional, radiological and follow-up data into a **map of patient profiles (phenotypes)**. The tool had to:
 
-## Estructura
+- identify groups of patients with similar characteristics and recovery trajectories;
+- describe in plain language what defines each group;
+- show the results clearly and visually to clinicians and researchers.
 
-```
-├── main.ipynb                         ← notebook de la presentación (resumen ejecutable)
-├── Workflow/
-│   ├── 01_analisis_exploratorio.ipynb  ← qué datos hay, de quién, cuándo y con qué calidad
-│   ├── 02_limpieza.ipynb               ← 14 reglas de limpieza, flujo de pacientes, tablas limpias
-│   ├── 03_fenotipado_ciberes.ipynb     ← fenotipos en CIBERESUCICOVID (síntomas + función): no viajan
-│   ├── 04_fenotipado_comun.ipynb       ← fenotipos con las 3 cohortes juntas: el fenotipo principal
-│   ├── 05_trayectorias.ipynb           ← evolución de la DLCO por fenotipo (modelo mixto, abandono, transiciones)
-│   ├── 06_modelo_alta.ipynb            ← ¿se predice el fenotipo con los datos del alta? (EBM, 3 cohortes)
-│   ├── 07_modelo_fase_aguda.ipynb      ← ¿y añadiendo la fase aguda? (EBM, solo CIBERESUCICOVID)
-│   └── 08_modelo_primera_visita.ipynb  ← en la visita de 3 meses: ¿quién sigue alterado al año?
-├── config.yaml                     ← todos los parámetros (umbrales, ventanas, k, semillas, rutas)
-├── src/                            ← funciones reutilizables (con docstrings)
-│   ├── carga.py                    lectura de datos y tablas largas de seguimiento
-│   ├── limpieza.py                 reglas R01–R14 y registro de limpieza
-│   ├── fenotipado.py               distancia de Gower, PAM, prueba nula, estabilidad
-│   ├── fenotipado_perfil.py        fenotipado a partir de un perfil de config.yaml
-│   ├── pasaporte.py                replicación entre cohortes (húngaro, Jaccard, ARI)
-│   ├── trayectorias.py             modelos mixtos, contrastes, IPW
-│   ├── fichas.py                   tabla de diferencias entre fenotipos (SMD e interpretación)
-│   └── privacidad.py               supresión de celdas con N < 10
-└
-├── informe.md                  ← informe completo: métodos, resultados, limitaciones, preguntas del jurado
+## Our approach
 
-```
+We worked with anonymised multimodal data from several cohorts:
 
-Al ejecutar, los notebooks crean `outputs/figuras/` y `outputs/tablas/` (solo agregados; `main/` para el notebook principal). No se versionan.
+- **CIBERES**: ICU patients from the first COVID-19 waves, followed for one year.
+- **Lleida Post-COVID**: later waves, followed for up to 4 years.
+- **Other cohorts**: Tenacity (various viral infections) and Virgen del Rocío (short term), used to test whether the phenotypes extend to other diseases and populations.
 
-## Qué produce cada notebook
+The idea is to find **reproducible phenotypes** at an early stage and use them to predict long-term outcomes. The temporal design is:
 
-Los notebooks se ejecutan **en orden**. Cada uno lee lo que generan los anteriores (en `../Datos limpios/`, fuera del repositorio).
-
-| Notebook | Lee | Genera |
+| Phenotyping at | Trajectory followed in CIBERES | Long-term follow-up (Lleida) |
 |---|---|---|
-| 01 Exploración | datos crudos | figuras `01_eda_*` |
-| 02 Limpieza | datos crudos | `pacientes`, `medidas`, `estado_definicion`, `visitas_tenacity`, `registro_limpieza`, `flujo_consort` |
-| 03 Fenotipado CIBERESUCICOVID | tablas limpias | `fenotipos.parquet` |
-| 04 Fenotipado común | tablas limpias | `fenotipos_comun.parquet`, `base_modelo.parquet` |
-| 05 Trayectorias | `fenotipos_comun` | figuras y tablas `05_tray_*` |
-| 06 Modelo al alta | `base_modelo` | `modelo_ebm_h3.pkl` |
-| 07 Modelo con fase aguda | `base_modelo` + tabla completa | `modelos_ebm_ciberes_funcional.pkl` |
-| 08 Modelo de la primera visita | tablas limpias | `modelo_primera_visita.pkl` |
-| `main` | datos crudos | resumen; regenera lo que necesita (tablas limpias y fenotipos) |
+| 3 months | 6 months → 12 months | up to 4 years |
+| 6 months | 12 months | up to 4 years |
+| 12 months | – | behaviour in Lleida |
 
-## Cómo ejecutarlo
+For each time point we cluster patients using their symptoms, functional tests (e.g. DLCO, TLC, FVC), radiological findings and clinical data. We then study how each cluster evolves at later visits. Finally, we check whether the longer-follow-up Lleida patients fit into the same groups, so that long-term sequelae can be anticipated from early data.
 
-1. **Datos.** No están en el repositorio: son datos de pacientes. La ruta se fija en `config.yaml → rutas.datos`. Por defecto es `../SECUELAS-Challenge/DATOS COVID Y OTROS VIRUS RESPIRATORIOS/bases_reto2/`, con `cohorte_unificada_nucleo.csv`, `cohorte_unificada.csv` y el diccionario. Las tablas limpias se guardan en `../Datos limpios/`.
-2. **Entorno** (Python 3.13):
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate          # Windows
-   pip install pandas numpy scipy scikit-learn statsmodels matplotlib seaborn plotly pyyaml openpyxl nbformat nbconvert ipykernel pyarrow kmedoids interpret-core
-   ```
-   La lista comentada está al final, en *Requerimientos*.
-3. **Ejecución:** abrir los notebooks de `Workflow/` en orden (01 → 08) y ejecutar todo, o directamente `main.ipynb`. Funcionan tanto desde la raíz como desde `Workflow/`. Desde la terminal:
-   ```bash
-   python -m nbconvert --to notebook --execute --inplace Workflow/01_analisis_exploratorio.ipynb
-   ```
-   Los clustering con permutaciones y bootstrap (notebooks 03, 04 y `main`) tardan varios minutos.
+## Pipeline
 
-## Principios
+1. **Exploratory analysis** (`01_analisis_exploratorio.ipynb`): structure, missingness and distributions.
+2. **Cleaning and unification** (`02_limpieza.ipynb`): a unified cohort (full and core versions) with a variable dictionary.
+3. **CIBERES phenotyping** (`03_fenotipado_ciberes.ipynb`): clustering at 3m, 6m and 12m.
+4. **Lleida phenotyping** (`04_fenotipado_lleida.ipynb`): projection of Lleida patients onto the phenotypes and long-term follow-up.
+5. **Common phenotyping** (`05_fenotipado_comun.ipynb`): a shared phenotype space across cohorts.
+6. **Interpretation and visualisation**: cluster profiles, defining variables and recovery trajectories, in a form that clinicians can read.
 
-- **Reproducible:** todos los parámetros están en `config.yaml`, con semilla fija (2026). Nada de números mágicos en el código.
-- **Replicación antes que descubrimiento:** un fenotipo solo cuenta si pasa el "pasaporte":
-  - tiene estructura frente a datos permutados;
-  - es estable (bootstrap);
-  - se reproduce en una cohorte que no se usó para descubrirlo;
-  - evoluciona distinto;
-  - se reconoce con pocas variables;
-  - tiene sentido clínico.
-- **Sin imputar la ausencia estructural:** lo que una cohorte no recoge nunca se inventa.
-- **Privacidad:** los datos están seudonimizados y no salen del entorno. Solo se muestran agregados, y las celdas con N < 10 se suprimen (`src/privacidad.py`).
-
-## Requerimientos
+## Repository structure
 
 ```
-pandas
-numpy
-scipy
-scikit-learn
-statsmodels
-matplotlib
-seaborn
-plotly
-pyyaml
-openpyxl
-nbformat
-nbconvert
-ipykernel
-pyarrow
-kmedoids          # PAM (FasterPAM); Gower implementada en src/fenotipado.py
-interpret-core    # EBM (notebooks 06 y 07)
+respira-hackathon/
+├── Workflow/        # Workflow of the project
+├── src/             # Source code (clustering, tables, visualisation)
+├── .gitignore       # Excludes data and temporary files
+├── config.yaml      # Pipeline configuration
+├── main.ipynb       # Main end-to-end notebook
+└── README.md
 ```
+
+## Getting started
+
+```bash
+git clone [https://github.com/carlospalazon/respira-hackathon.git](https://github.com/carlospalazon/respira-hackathon.git)
+cd respira-hackathon
+pip install -r requirements.txt   # if available
+jupyter notebook main.ipynb
+```
+
+Edit `config.yaml` to set data paths and clustering parameters. Patient data is **not** included in the repository for privacy reasons.
+
+## Key features
+
+- **Reproducible**: configuration-driven pipeline, so the same method applies to other cohorts.
+- **Interpretable**: each phenotype is described by its defining variables.
+- **Longitudinal**: trajectories at 3, 6, 12 months and up to 4 years.
+- **Transferable**: designed to extend beyond COVID-19 to other respiratory infections.
+
+## Results
+
+See [`Informe.md`](Informe.md) for the full methodology, clustering results and clinical interpretation of the phenotypes.
+
+## Team
+
+Developed during the Respira Hackathon by:
+
+- Nil Muriach
+- Carlos Palazón
+- Ferran Òdena
+
+
 
