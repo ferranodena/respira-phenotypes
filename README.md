@@ -2,6 +2,8 @@
 
 🏆 **First prize winner** of the challenge *"Más allá de la infección: un mapa inteligente para comprender las secuelas"*.
 
+Developed during the Respira Hackathon, organised by the Centro de Investigación Biomédica en Red (CIBER) and AstraZeneca, with a focus on the respiratory research area CIBERES.
+
 ## The challenge
 
 Recovery after a severe respiratory infection varies a lot between patients. Some return to their previous health. Others live for months or years with dyspnoea, fatigue, memory or concentration problems, sleep disturbances or muscle weakness. Current classifications usually focus on isolated symptoms or abnormalities. They can group patients with very different recovery needs under one diagnosis.
@@ -81,5 +83,10 @@ Developed during the Respira Hackathon by:
 - Carlos Palazón
 - Ferran Òdena
 
+## Acknowledgements
+
+We thank CIBER and its respiratory research area, CIBERES, as well as AstraZeneca, for making the Respira Hackathon possible.
+
+We also thank the challenge leads, clinicians, researchers and mentors for their guidance, clinical insights and feedback throughout the event. Their support helped us connect the data-analysis work with the clinical questions behind the challenge.
 
 
